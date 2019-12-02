@@ -57,7 +57,7 @@ class IMessagingReader
     virtual void waitForWriters(int numPublishers) = 0;
     // only used for non-callback test
     virtual TestMessage *ReceiveMessage() = 0;
-    virtual void ReceiveAndProccess(IMessagingCB *listener) = 0;
+    virtual void ReceiveAndProcess(IMessagingCB *listener) = 0;
     // only used for non-callback test to cleanup
     // the thread
     virtual void Shutdown() {}

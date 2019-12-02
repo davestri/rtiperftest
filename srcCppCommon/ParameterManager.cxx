@@ -19,7 +19,9 @@ ParameterManager::ParameterManager(bool perftestMicro) : perftestForMicro(perfte
 
 void ParameterManager::initialize()
 {
-    // GENERAL PARAMETER
+  ////////////////////////////////////////////////////////////////////////////
+  // GENERAL PARAMETERS
+
     Parameter<bool> *bestEffort = new Parameter<bool>(false);
     bestEffort->set_command_line_argument("-bestEffort", "");
     bestEffort->set_description(
@@ -47,7 +49,6 @@ void ParameterManager::initialize()
             | Middleware::RAWTRANSPORT
             | Middleware::RTIDDSMICRO);
     create("dataLen", dataLen);
-
 
     Parameter<int> *verbosity = new Parameter<int>(1);
     verbosity->set_command_line_argument("-verbosity", "<level>");
@@ -381,6 +382,18 @@ void ParameterManager::initialize()
     preallocateFragmentation->set_supported_middleware(Middleware::RTIDDSPRO);
     create("preallocateFragmentedSamples", preallocateFragmentation);
 
+    Parameter<int> *firstTopic = new Parameter<int>(1);
+    firstTopic->set_command_line_argument("-firstTopic", "<first_throughput_topic>");
+    firstTopic->set_description(
+            "Use multiple topics for throughput\n"
+            "<first_throughput_topic> is optional. Default: 1 Topic");
+    firstTopic->set_type(T_NUMERIC_D);
+    firstTopic->set_extra_argument(POSSIBLE);
+    firstTopic->set_range(0, MAX_TOPICS - 1);
+    firstTopic->set_group(GENERAL);
+    firstTopic->set_supported_middleware(Middleware::RTIDDSPRO);
+    create("firstTopic", firstTopic);
+
   #ifdef RTI_LANGUAGE_CPP_TRADITIONAL
     Parameter<bool> *useLegacyDynamicData = new Parameter<bool>(false);
     useLegacyDynamicData->set_command_line_argument("-useLegacyDynamicData", "");
@@ -394,9 +407,8 @@ void ParameterManager::initialize()
     create("useLegacyDynamicData", useLegacyDynamicData);
   #endif
 
-
-    ////////////////////////////////////////////////////////////////////////////
-    //PUBLISHER PARAMETER
+  ////////////////////////////////////////////////////////////////////////////
+  //PUBLISHER PARAMETERS
 
     Parameter<long> *batchSize =
             new Parameter<long>(DEFAULT_THROUGHPUT_BATCH_SIZE);
@@ -563,7 +575,7 @@ void ParameterManager::initialize()
     pubRate->add_valid_str_value("spin");
     create("pubRate", pubRate);
 
-     std::vector<unsigned long long> scanList;
+    std::vector<unsigned long long> scanList;
     scanList.push_back(32);
     scanList.push_back(64);
     scanList.push_back(128);
@@ -692,8 +704,22 @@ void ParameterManager::initialize()
             | Middleware::RTIDDSMICRO);
     create("writeInstance", writeInstance);
 
-    ////////////////////////////////////////////////////////////////////////////
-    //SUBSCRIBER PARAMETER
+    Parameter<int> *numWriters = new Parameter<int>(1);
+    numWriters->set_command_line_argument("-numWriters", "<num_throughput_writers>");
+    numWriters->set_description(
+            "Use multiple writers within Publisher for multiple topics\n"
+            "'-numWriters' + '-firstTopic' must be <= 'MAX_TOPICS + 1'\n"
+            "<num_throughput_writers> is optional. Default: 1 Writer");
+    numWriters->set_type(T_NUMERIC_D);
+    numWriters->set_extra_argument(POSSIBLE);
+    numWriters->set_range(1, MAX_TOPICS);
+    numWriters->set_group(PUB);
+    numWriters->set_supported_middleware(Middleware::RTIDDSPRO);
+    create("numWriters", numWriters);
+
+  ////////////////////////////////////////////////////////////////////////////
+  //SUBSCRIBER PARAMETERS
+
     Parameter<bool> *sub = new Parameter<bool>(false);
     sub->set_command_line_argument("-sub", "");
     sub->set_description("Set test to be a subscriber");
@@ -752,8 +778,22 @@ void ParameterManager::initialize()
     cft->set_supported_middleware(Middleware::RTIDDSPRO);
     create("cft", cft);
 
-    ////////////////////////////////////////////////////////////////////////////
-    // TRANSPORT PARAMETER:
+    Parameter<int> *numReaders = new Parameter<int>(1);
+    numReaders->set_command_line_argument("-numReaders", "<num_throughput_readers>");
+    numReaders->set_description(
+            "Use multiple readers within Subscriber for multiple topics\n"
+            "'-numReaders' + '-firstTopic' must be <= 'MAX_TOPICS + 1'\n"
+            "<num_throughput_readers> is optional. Default: 1 Reader");
+    numReaders->set_type(T_NUMERIC_D);
+    numReaders->set_extra_argument(POSSIBLE);
+    numReaders->set_range(1, MAX_TOPICS);
+    numReaders->set_group(SUB);
+    numReaders->set_supported_middleware(Middleware::RTIDDSPRO);
+    create("numReaders", numReaders);
+
+  ////////////////////////////////////////////////////////////////////////////
+  // TRANSPORT PARAMETERS
+
     Parameter<std::string> *nic = new Parameter<std::string>();
     nic->set_command_line_argument("-nic", "<ipaddr/name>");
     nic->set_description(

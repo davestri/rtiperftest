@@ -104,7 +104,8 @@ RTIDDSImpl<T>::RTIDDSImpl():
         _participant(dds::core::null),
         _subscriber(dds::core::null),
         _publisher(dds::core::null),
-        _pongSemaphore(RTI_OSAPI_SEMAPHORE_KIND_BINARY,NULL)
+        _pongSemaphore(RTI_OSAPI_SEMAPHORE_KIND_BINARY,NULL),
+        _throughputQosProvider(dds::core::null)
     {
         _qoSProfileNameMap[LATENCY_TOPIC_NAME] = std::string("LatencyQos");
         _qoSProfileNameMap[ANNOUNCEMENT_TOPIC_NAME]
@@ -1079,9 +1080,12 @@ public:
             }
 
             // skip non-valid data
-            while ((!samples[this->_data_idx].info().valid())
-                    && (++(this->_data_idx) < seq_length))
-                ;
+            while (
+                    (!samples[this->_data_idx].info().valid())
+                    &&
+                    (++(this->_data_idx) < seq_length)
+                  )
+                ; // do nothing
 
             // may have hit end condition
             if (this->_data_idx == seq_length) {
@@ -1099,12 +1103,12 @@ public:
 
             ++(this->_data_idx);
 
-            return &(this->_message);
+            return &(this->_message); //drs. ?? this returns the first real sample in the sequence taken, what about the rest?
         }
         return NULL;
     }
 
-    void ReceiveAndProccess(IMessagingCB *listener) {
+    void ReceiveAndProcess(IMessagingCB *listener) {
         while (!listener->end_test) {
 
             this->_waitset.dispatch(dds::core::Duration::infinite());
@@ -1220,7 +1224,7 @@ public:
        * @param listener that implements the ProcessMessage method
        *    that will be used to process received samples.
        */
-      void ReceiveAndProccess(IMessagingCB *listener) {
+      void ReceiveAndProcess(IMessagingCB *listener) {
           while (!listener->end_test) {
 
               this->_waitset.dispatch(dds::core::Duration::infinite());
@@ -1315,7 +1319,7 @@ public:
         return NULL;
     }
 
-    void ReceiveAndProccess(IMessagingCB *listener) {
+    void ReceiveAndProcess(IMessagingCB *listener) {
         while (!listener->end_test) {
 
             this->_waitset.dispatch(dds::core::Duration::infinite());
@@ -1591,9 +1595,20 @@ dds::core::QosProvider RTIDDSImpl<T>::getQosProviderForProfile(
     QosProvider qosProvider(dds::core::null);
 
     if (!_PM->get<bool>("noXmlQos")) {
-        qosProvider = dds::core::QosProvider(
-                _PM->get<std::string>("qosFile"),
-                library_name + "::" + profile_name);
+        if (profile_name == "ThroughputQos") {
+            if (_throughputQosProvider == dds::core::null) { // do this once only
+                qosProvider = dds::core::QosProvider(
+                        _PM->get<std::string>("qosFile"),
+                        library_name + "::" + profile_name);
+                _throughputQosProvider = qosProvider;
+            } else {
+                qosProvider = _throughputQosProvider;
+            }
+        } else {
+            qosProvider = dds::core::QosProvider(
+                    _PM->get<std::string>("qosFile"),
+                    library_name + "::" + profile_name);
+        }
     } else {
         rti::core::QosProviderParams perftestQosProviderParams;
         dds::core::StringSeq perftestStringProfile(
@@ -1617,7 +1632,7 @@ template <typename T>
 bool RTIDDSImpl<T>::Initialize(ParameterManager &PM, perftest_cpp *parent)
 {
     using namespace rti::core::policy;
-    // Assigne the ParameterManager
+    // Assign the ParameterManager
     _PM = &PM;
     _transport.initialize(_PM);
 
@@ -2013,16 +2028,20 @@ IMessagingReader *RTIDDSImpl<T>::CreateReader(
 template <typename T>
 const std::string RTIDDSImpl<T>::get_qos_profile_name(std::string topicName)
 {
-    if (_qoSProfileNameMap[topicName].empty()) {
-        std::cerr << "topic name must either be %s or %s or %s.\n"
-                  << THROUGHPUT_TOPIC_NAME << " or "
-                  << LATENCY_TOPIC_NAME << " or "
+    // this bit is rather brittle. it relies on digit suffix to topic name
+    int pos = topicName.find_first_of("0123456789");
+    std::cerr << "trying topic: " << topicName << " as "
+              << topicName.substr(0,pos) << std::endl;
+    if (_qoSProfileNameMap[topicName.substr(0,pos)].empty()) {
+        std::cerr << "topic name must either be "
+                  << THROUGHPUT_TOPIC_NAME << "??? or be "
+                  << LATENCY_TOPIC_NAME << " or be "
                   << ANNOUNCEMENT_TOPIC_NAME << "."
                   << std::endl;
     }
 
-    /* If the topic name dont match any key return a empty string */
-    return _qoSProfileNameMap[topicName];
+    /* If the topic name doesn't match any key return an empty string */
+    return _qoSProfileNameMap[topicName.substr(0,pos)];
 }
 
 #ifndef RTI_MICRO
@@ -2073,11 +2092,18 @@ dds::sub::qos::DataReaderQos RTIDDSImpl<T>::setup_DR_QoS(
     using namespace rti::core::policy;
 
     dds::core::QosProvider qos_provider = getQosProviderForProfile(
-       _PM->get<std::string>("qosLibrary"),
+        _PM->get<std::string>("qosLibrary"),
         qos_profile
     );
 
-    dds::sub::qos::DataReaderQos dr_qos = qos_provider.datareader_qos();
+    dds::sub::qos::DataReaderQos dr_qos;
+    if (qos_profile == "ThroughputQos") {
+        dr_qos = qos_provider->datareader_qos_w_topic_name(topic_name);
+    }
+    else {
+        dr_qos = qos_provider.datareader_qos();
+    }
+
     Reliability qos_reliability = dr_qos.policy<Reliability>();
     ResourceLimits qos_resource_limits = dr_qos.policy<ResourceLimits>();
     DataReaderResourceLimits qos_dr_resource_limits = dr_qos.policy<DataReaderResourceLimits>();
@@ -2090,7 +2116,7 @@ dds::sub::qos::DataReaderQos RTIDDSImpl<T>::setup_DR_QoS(
             dr_qos.policy<Property>().get_all();
 
     // only force reliability on throughput/latency topics
-    if (topic_name != ANNOUNCEMENT_TOPIC_NAME.c_str()) {
+    if ((qos_profile == "ThroughputQos") || (qos_profile == "LatencyQos")) {
         if (!_PM->get<bool>("bestEffort")) {
             qos_reliability = dds::core::policy::Reliability::Reliable();
         } else {
@@ -2156,7 +2182,7 @@ dds::sub::qos::DataReaderQos RTIDDSImpl<T>::setup_DR_QoS(
                 _transport.getMulticastAddr(topic_name.c_str());
         if (multicastAddr.length() == 0) {
             std::cerr << "[Error] Topic name must either be "
-                      << THROUGHPUT_TOPIC_NAME << " or "
+                      << THROUGHPUT_TOPIC_NAME << "nnn or "
                       << LATENCY_TOPIC_NAME << " or "
                       << ANNOUNCEMENT_TOPIC_NAME << std::endl;
             throw std::logic_error("[Error] Topic name");

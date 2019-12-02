@@ -109,6 +109,10 @@ class RTIDDSImpl : public IMessaging
     ParameterManager *_PM;
     perftest_cpp *_parent;
     std::map<std::string, std::string> _qoSProfileNameMap;
+    //std::map<std::string, dds::core::QosProvider> _qoSProviderMap;
+    //std::map<std::string, dds::core::QosProvider&> _qoSProviderMap;
+    //std::map<std::string, Allocator::reference> _qoSProviderMap;
+    dds::core::QosProvider _throughputQosProvider;
 
   #ifdef RTI_SECURE_PERFTEST
     static const std::string SECURE_PRIVATEKEY_FILE_PUB;

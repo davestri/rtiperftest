@@ -13,6 +13,7 @@ const long MAX_PERFTEST_SAMPLE_SIZE = 2147482620; // 2GB-1KB-4B (RTI_CDR_MAX_SER
 const long MAX_CFT_VALUE = 65535;
 const long KEY_SIZE = 4;
 const unsigned long DEFAULT_THROUGHPUT_BATCH_SIZE = 8192; // 8kB
+const long MAX_TOPICS = 600; // when sending throughput across multiple topics
 
 /*
  * Topic Names for the different channel RTI Perftest will use

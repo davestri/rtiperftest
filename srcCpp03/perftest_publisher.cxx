@@ -489,8 +489,8 @@ bool perftest_cpp::validate_input()
            _PM.set<bool>("flatdata", true);
       }
 
-      if (_PM.get<bool>("zerocopy") && 
-            !(_PM.get<std::string>("transport") == "SHMEM" 
+      if (_PM.get<bool>("zerocopy") &&
+            !(_PM.get<std::string>("transport") == "SHMEM"
             || _PM.get<std::string>("transport") == "Use XML"
             || _PM.get<std::string>("transport") == "UDPv4 & SHMEM"
             || _PM.get<std::string>("transport") == "UDPv6 & SHMEM"
@@ -506,7 +506,7 @@ bool perftest_cpp::validate_input()
 
       /**
        * Avoid displaying on_data_available:!null offset
-       * 
+       *
        * We would use a custom Logger as in Traditional C++
        * but it is not available in Modern C++ API
        * http://jira:8085/browse/CORE-7895
@@ -934,7 +934,7 @@ public:
 static void *ThroughputReadThread(void *arg) {
 
     ThroughputListener *listener = static_cast<ThroughputListener *>(arg);
-    listener->_reader->ReceiveAndProccess(listener);
+    listener->_reader->ReceiveAndProcess(listener);
 
     return NULL;
 }
@@ -946,7 +946,8 @@ int perftest_cpp::RunSubscriber()
 {
     struct RTIOsapiThread *receiverThread = NULL;
     ThroughputListener *reader_listener = NULL;
-    IMessagingReader   *reader = NULL;
+    //IMessagingReader   *reader = NULL;
+    IMessagingReader   *readers[] = {[0 ... MAX_TOPICS-1] = NULL};
     IMessagingWriter   *writer = NULL;
     IMessagingWriter   *announcement_writer = NULL;
 
@@ -955,35 +956,49 @@ int perftest_cpp::RunSubscriber()
 
     // Check if using callbacks or read thread
     if (!_PM.get<bool>("useReadThread")) {
-        // create latency pong reader
-        reader_listener = new ThroughputListener(
+        // create throughput ping reader(s)
+        reader_listener = new ThroughputListener( //drs. one listener or many?
                 _PM,
                 writer,
                 NULL,
                 _PM.is_set("cft"),
                 _PM.get<int>("numPublishers"));
-        reader = _MessagingImpl->CreateReader(
-                THROUGHPUT_TOPIC_NAME,
+        for (int i = 0; i < _PM.get<int>("numReaders"); i++) {
+            printf("[Info] Creating reader %d for topic %d\n", i, i + _PM.get<int>("firstTopic"));
+            std::ostringstream ss;
+            ss << THROUGHPUT_TOPIC_NAME << (i + _PM.get<int>("firstTopic"));
+            readers[i] = _MessagingImpl->CreateReader(
+                ss.str().c_str(),
+                // CreateReader doesn't accept a Qos struct, it infers it from topic name
                 reader_listener);
-        if (reader == NULL) {
-            std::cerr << "[Error] Problem creating throughput reader."
-                      << std::endl;
-            return -1;
+            if (readers[i] == NULL) {
+                std::cerr << "[Error] Problem creating throughput reader: "
+                          << i << std::endl;
+                return -1;
+            }
+            rti::util::sleep(dds::core::Duration(0,50000000)); // 50 msec
         }
     } else {
         std::cerr << "[Info] Using reading thread." << std::endl;
-        reader = _MessagingImpl->CreateReader(
-                THROUGHPUT_TOPIC_NAME,
+        /*
+        for (int i = 0; i < numReaders; i++) {
+            printf("[Info] Creating reader %d for topic %d\n", i, i+firstTopic);
+            std::ostringstream ss;
+            ss << THROUGHPUT_TOPIC_NAME << (i + firstTopic);
+            readers[i] = _MessagingImpl->CreateReader(
+                ss.str().c_str(),
+                // dr_qos, // CreateReader doesn't accept a Qos struct
                 NULL);
-        if (reader == NULL) {
-            std::cerr << "[Error] Problem creating throughput reader."
-                      << std::endl;
-            return -1;
+            if (readers[i] == NULL) {
+                std::cerr << "[Error] Problem creating throughput reader."
+                          << std::endl;
+                return -1;
+            }
         }
         reader_listener = new ThroughputListener(
                 _PM,
                 writer,
-                reader,
+                reader, //drs. what is this for?
                 _PM.is_set("cft"),
                 _PM.get<int>("numPublishers"));
 
@@ -1009,7 +1024,7 @@ int perftest_cpp::RunSubscriber()
                     << std::endl;
             return -1;
         }
-
+        */
     }
 
     // Create announcement writer
@@ -1021,7 +1036,7 @@ int perftest_cpp::RunSubscriber()
               << _PM.get<int>("numPublishers")
               << " publishers ..."
               << std::endl;
-    reader->waitForWriters(_PM.get<int>("numPublishers"));
+    readers[1]->waitForWriters(_PM.get<int>("numPublishers")); //drs. is one enough ?
     announcement_writer->waitForReaders(_PM.get<int>("numPublishers"));
 
     /*
@@ -1146,9 +1161,11 @@ int perftest_cpp::RunSubscriber()
         delete(writer);
     }
 
-    if (reader != NULL) {
-        reader->Shutdown();
-        delete(reader);
+    for (int i = 0; i < _PM.get<int>("numReaders"); i++) {
+        if (readers[i] != NULL) {
+            readers[i]->Shutdown();
+            delete(readers[i]);
+        }
     }
 
     if (reader_listener != NULL) {
@@ -1501,7 +1518,7 @@ int perftest_cpp::RunPublisher()
 {
     LatencyListener  *reader_listener = NULL;
     IMessagingReader *reader;
-    IMessagingWriter *writer;
+    IMessagingWriter *writers[] = {[0 ... MAX_TOPICS-1] = NULL};;
     AnnouncementListener  *announcement_reader_listener = NULL;
     IMessagingReader *announcement_reader;
     unsigned long num_latency;
@@ -1510,8 +1527,18 @@ int perftest_cpp::RunPublisher()
     struct RTIOsapiThread *executionTimeoutThread = NULL;
     struct RTIOsapiThread *receiverThread = NULL;
 
-    // create throughput/ping writer
-    writer = _MessagingImpl->CreateWriter(THROUGHPUT_TOPIC_NAME);
+    // create throughput/ping writer(s)
+    for (int i = 0; i < _PM.get<int>("numWriters"); i++) {
+        printf("[Info] Creating writer %d for topic %d\n", i, i + _PM.get<int>("firstTopic"));
+        std::ostringstream ss;
+        ss << THROUGHPUT_TOPIC_NAME << (i + _PM.get<int>("firstTopic"));
+        writers[i] = _MessagingImpl->CreateWriter(ss.str().c_str());
+        if (writers[i] == NULL) {
+            std::cerr << "[Error] Problem creating throughput writer: "
+                      << i << std::endl;
+            return -1;
+        }
+    }
 
     // Calculate number of latency pings that will be sent per data size
     num_latency = (unsigned long)((_PM.get<unsigned long long>("numIter") /
@@ -1535,7 +1562,8 @@ int perftest_cpp::RunPublisher()
             reader_listener = new LatencyListener(
                     num_latency,
                     NULL,
-                    _PM.get<bool>("latencyTest") ? writer : NULL,
+                    _PM.get<bool>("latencyTest") ? writers[0] : NULL,
+                    //drs. why is a writer passed to the listener? was "writer"
                     _PM);
             reader = _MessagingImpl->CreateReader(
                     LATENCY_TOPIC_NAME,
@@ -1559,7 +1587,8 @@ int perftest_cpp::RunPublisher()
             reader_listener = new LatencyListener(
                     num_latency,
                     reader,
-                    _PM.get<bool>("latencyTest") ? writer : NULL,
+                    _PM.get<bool>("latencyTest") ? writers[0] : NULL,
+                    //drs. why is a writer passed to the listener? was "writer"
                     _PM);
 
             int threadPriority = RTI_OSAPI_THREAD_PRIORITY_DEFAULT;
@@ -1628,7 +1657,7 @@ int perftest_cpp::RunPublisher()
               << _PM.get<int>("numSubscribers")
               << " subscribers ..."
               << std::endl;
-    writer->waitForReaders(_PM.get<int>("numSubscribers"));
+    writers[0]->waitForReaders(_PM.get<int>("numSubscribers"));
 
     // We have to wait until every Subscriber sends an announcement message
     // indicating that it has discovered every RunPublisher
@@ -1679,9 +1708,13 @@ int perftest_cpp::RunPublisher()
 
     for (unsigned long i = 0; i < initializeSampleCount; i++) {
         // Send test initialization message
-        writer->send(message, true);
+        for (int j = 0; j < _PM.get<int>("numWriters"); j++) {
+            writers[j]->send(message, true);
+        }
     }
-    writer->flush();
+    for (int j = 0; j < _PM.get<int>("numWriters"); j++) {
+        writers[j]->flush();
+    }
 
     std::cerr << "[Info] Publishing data ..." << std::endl;
 
@@ -1730,9 +1763,9 @@ int perftest_cpp::RunPublisher()
         }
     }
     /*
-     * Copy variable to no query the ParameterManager in every iteration.
+     * Copy variables to not query the ParameterManager in every iteration.
      * They should not be modified:
-     * - NumIter
+     * - numIter
      * - latencyCount
      * - numSubscribers
      * - bestEffort
@@ -1744,6 +1777,7 @@ int perftest_cpp::RunPublisher()
      * - isScan
      * - scanList
      * - isSetPubRate
+     * - numWriters
      */
     const unsigned long long numIter = _PM.get<unsigned long long>("numIter");
     const unsigned long long latencyCount =
@@ -1761,6 +1795,7 @@ int perftest_cpp::RunPublisher()
     const std::vector<unsigned long long> scanList =
             _PM.get_vector<unsigned long long>("scan");
     const bool isSetPubRate = _PM.is_set("pubRate");
+    const int numWriters = _PM.get<int>("numWriters");
 
     struct ScheduleInfo schedInfo_scan = {
             (unsigned int)_PM.get<unsigned long long>("executionTime"),
@@ -1836,10 +1871,14 @@ int perftest_cpp::RunPublisher()
                     _testCompleted_scan = false;
 
                     // flush anything that was previously sent
-                    writer->flush();
-                    writer->waitForAck(
-                        timeout_wait_for_ack_sec,
-                        timeout_wait_for_ack_nsec);
+                    for (int j = 0; j < numWriters; j++) {
+                        writers[j]->flush();
+                    }
+                    for (int j = 0; j < numWriters; j++) {
+                        writers[j]->waitForAck(
+                            timeout_wait_for_ack_sec,
+                            timeout_wait_for_ack_nsec);
+                    }
 
                     if (scan_count == scanList.size()) {
                         break; // End of scan test
@@ -1871,18 +1910,24 @@ int perftest_cpp::RunPublisher()
                      * Best Effort, waitForAck() will return inmediately.
                      * This would cause that the Send() would be exercised too many times,
                      * in some cases causing the network to be flooded, a lot of packets being
-                     * lost, and potentially CPU starbation for other processes.
+                     * lost, and potentially CPU starvation for other processes.
                      * We can prevent this by adding a small sleep() if the test is best
                      * effort.
                      */
                     announcement_reader_listener->subscriber_list.clear();
                     while ((int)announcement_reader_listener->subscriber_list.size()
                             < numSubscribers) {
-                        writer->send(message, true);
-                        writer->flush();
-                        writer->waitForAck(
-                            timeout_wait_for_ack_sec,
-                            timeout_wait_for_ack_nsec);
+                        for (int j = 0; j < numWriters; j++) {
+                            writers[j]->send(message, true);
+                            writers[j]->flush();
+                        }
+                        for (int j = 0; j < numWriters; j++) {
+                            writers[j]->waitForAck(
+                                timeout_wait_for_ack_sec,
+                                timeout_wait_for_ack_nsec);
+                                //drs. would prefer not to wait repeatedly
+                        }
+                        //drs. how does this while loop work?
                     }
 
                     message.size = (int)scanList[scan_count++] - OVERHEAD_BYTES;
@@ -1904,8 +1949,10 @@ int perftest_cpp::RunPublisher()
                 sentPing = true;
 
                 if (writerStats && printIntervals) {
-                    printf("Pulled samples: %7d\n",
-                            writer->getPulledSampleCount());
+                    for (int j; j < numWriters; j++) {
+                        printf("Pulled samples: %7d\n",
+                            writers[j]->getPulledSampleCount());
+                    }
                 }
             }
         }
@@ -1913,13 +1960,18 @@ int perftest_cpp::RunPublisher()
 
         message.seq_num = (unsigned long) loop;
         message.latency_ping = pingID;
-        writer->send(message);
-        if(latencyTest && sentPing) {
-            if (!bestEffort) {
-                writer->waitForPingResponse();
-            } else {
-                /* time out in milliseconds */
-                writer->waitForPingResponse(200);
+        for (int j = 0; j < numWriters; j++) {
+            writers[j]->send(message);
+        }
+        for (int j = 0; j < numWriters; j++) {
+            if(latencyTest && sentPing) {
+                if (!bestEffort) {
+                    writers[j]->waitForPingResponse();
+                } else {
+                    /* time out in milliseconds */
+                    writers[j]->waitForPingResponse(200);
+                }
+                //drs. would be better to cycle these pings across writers
             }
         }
 
@@ -1931,7 +1983,9 @@ int perftest_cpp::RunPublisher()
     }
 
     // In case of batching, flush
-    writer->flush();
+    for (int j = 0; j < numWriters; j++) {
+        writers[j]->flush();
+    }
 
     // Test has finished, send end of test message, send multiple
     // times in case of best effort
@@ -1945,15 +1999,22 @@ int perftest_cpp::RunPublisher()
     unsigned long i = 0;
     while (announcement_reader_listener->subscriber_list.size() > 0
             && i < announcementSampleCount) {
-        writer->send(message, true);
-        writer->flush();
-        writer->waitForAck(
-            timeout_wait_for_ack_sec,
-            timeout_wait_for_ack_nsec);
+        for (int j = 0; j < numWriters; j++) {
+            writers[j]->send(message, true);
+            writers[j]->flush();
+            //writers[j]->waitForAck(
+            //    timeout_wait_for_ack_sec,
+            //    timeout_wait_for_ack_nsec);
+            //drs. too much waiting - fix this!
+        }
+        //drs. try this
+        writers[numWriters]->waitForAck(
+                timeout_wait_for_ack_sec,
+                timeout_wait_for_ack_nsec);
         i++;
     }
 
-    if (_PM.get<int>("pidMultiPubTest") == 0) {
+    if (pidMultiPubTest == 0) {
         reader_listener->print_summary_latency();
         reader_listener->end_test = true;
     } else {
@@ -1962,15 +2023,19 @@ int perftest_cpp::RunPublisher()
     }
 
     if (_PM.get<bool>("writerStats")) {
-        printf("Pulled samples: %7d\n", writer->getPulledSampleCount());
+        for (int j = 0; j < numWriters; j++) {
+            printf("Pulled samples: %7d\n", writers[j]->getPulledSampleCount());
+        }
     }
 
     if (receiverThread != NULL) {
         RTIOsapiThread_delete(receiverThread);
     }
 
-    if (writer != NULL) {
-        delete(writer);
+    for (int j = 0; j < numWriters; j++) {
+        if (writers[j] != NULL) {
+            delete(writers[j]);
+        }
     }
 
     if (announcement_reader_listener != NULL) {
