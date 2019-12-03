@@ -947,7 +947,7 @@ int perftest_cpp::RunSubscriber()
     struct RTIOsapiThread *receiverThread = NULL;
     ThroughputListener *reader_listener = NULL;
     //IMessagingReader   *reader = NULL;
-    IMessagingReader   *readers[] = {[0 ... MAX_TOPICS-1] = NULL};
+    IMessagingReader   *readers[MAX_TOPICS] = {}; // set to NULL
     IMessagingWriter   *writer = NULL;
     IMessagingWriter   *announcement_writer = NULL;
 
@@ -1518,7 +1518,7 @@ int perftest_cpp::RunPublisher()
 {
     LatencyListener  *reader_listener = NULL;
     IMessagingReader *reader;
-    IMessagingWriter *writers[] = {[0 ... MAX_TOPICS-1] = NULL};;
+    IMessagingWriter *writers[MAX_TOPICS] = {}; // set to NULL
     AnnouncementListener  *announcement_reader_listener = NULL;
     IMessagingReader *announcement_reader;
     unsigned long num_latency;
