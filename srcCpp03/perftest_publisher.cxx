@@ -976,7 +976,7 @@ int perftest_cpp::RunSubscriber()
                           << i << std::endl;
                 return -1;
             }
-            rti::util::sleep(dds::core::Duration(0,50000000)); // 50 msec
+            rti::util::sleep(dds::core::Duration(0,100000000)); // 100 msec
         }
     } else {
         std::cerr << "[Info] Using reading thread." << std::endl;
@@ -1036,7 +1036,7 @@ int perftest_cpp::RunSubscriber()
               << _PM.get<int>("numPublishers")
               << " publishers ..."
               << std::endl;
-    readers[1]->waitForWriters(_PM.get<int>("numPublishers")); //drs. is one enough ?
+    readers[0]->waitForWriters(_PM.get<int>("numPublishers")); //drs. is one enough ?
     announcement_writer->waitForReaders(_PM.get<int>("numPublishers"));
 
     /*
@@ -2008,7 +2008,7 @@ int perftest_cpp::RunPublisher()
             //drs. too much waiting - fix this!
         }
         //drs. try this
-        writers[numWriters]->waitForAck(
+        writers[numWriters-1]->waitForAck(
                 timeout_wait_for_ack_sec,
                 timeout_wait_for_ack_nsec);
         i++;
