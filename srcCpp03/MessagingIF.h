@@ -55,11 +55,19 @@ class IMessagingReader
   public:
     virtual ~IMessagingReader() {}
     virtual void waitForWriters(int numPublishers) = 0;
+    virtual std::string getTopicName() {
+        return "";
+    };
+    virtual unsigned int getCachedSampleCount() {
+        return -1;
+    };
+    virtual unsigned int getCachedSampleCountPeak() {
+        return -1;
+    };
     // only used for non-callback test
     virtual TestMessage *ReceiveMessage() = 0;
     virtual void ReceiveAndProcess(IMessagingCB *listener) = 0;
-    // only used for non-callback test to cleanup
-    // the thread
+    // only used for non-callback test to cleanup the thread
     virtual void Shutdown() {}
 };
 
@@ -88,7 +96,16 @@ class IMessagingWriter
         // The implementation may consist of just
         // a binary semaphore GIVE operation
     };
+    virtual std::string getTopicName() {
+        return "";
+    };
     virtual unsigned int getPulledSampleCount() {
+        return -1;
+    };
+    virtual unsigned int getCachedSampleCount() {
+        return -1;
+    };
+    virtual unsigned int getCachedSampleCountPeak() {
         return -1;
     };
     virtual void waitForAck(long /*sec*/, unsigned long /*nsec*/) {

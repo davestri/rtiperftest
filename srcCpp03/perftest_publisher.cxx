@@ -815,6 +815,18 @@ public:
                 || (_useCft && message.latency_ping != -1)) {
             _writer->send(message);
             _writer->flush();
+
+            // print out cache count for this reader
+            if (_PM->get<bool>("readerStats")) {
+                if (_reader == NULL) {
+                    printf("can't print reader stats, _reader is NULL\n");
+                } else {
+                    printf("##ReaderStats## Topic: %s , Cache count: %7d , Cache count peak: %7d\n",
+                          _reader->getTopicName().c_str(),
+                          _reader->getCachedSampleCount(),
+                          _reader->getCachedSampleCountPeak());
+                }
+            }
         }
 
         // Always check if need to reset internals
@@ -1716,6 +1728,14 @@ int perftest_cpp::RunPublisher()
         writers[j]->flush();
     }
 
+    // clear the writer stats from the intialization pings
+    for (int j = 0; j < _PM.get<int>("numWriters"); j++) {
+        int tmp = writers[j]->getPulledSampleCount();
+        tmp = writers[j]->getCachedSampleCount();
+        tmp = writers[j]->getCachedSampleCountPeak();
+        std::cerr << "[Info] Cached sample count peak = " << tmp << std::endl;
+    }
+
     std::cerr << "[Info] Publishing data ..." << std::endl;
 
     // Set data size, account for other bytes in message
@@ -1735,7 +1755,7 @@ int perftest_cpp::RunPublisher()
     unsigned long long time_now = 0, time_last_check = 0, time_delta = 0;
     unsigned long pubRate_sample_period = 1;
     unsigned long rate = 0;
-
+printf("here 1\n");
     struct ScheduleInfo schedInfo = {
             (unsigned int)_PM.get<unsigned long long>("executionTime"),
             Timeout
@@ -1801,6 +1821,7 @@ int perftest_cpp::RunPublisher()
             (unsigned int)_PM.get<unsigned long long>("executionTime"),
             Timeout_scan
     };
+    printf("here 2\n");
 
     /********************
      *  Main sending loop
@@ -1950,8 +1971,11 @@ int perftest_cpp::RunPublisher()
 
                 if (writerStats && printIntervals) {
                     for (int j; j < numWriters; j++) {
-                        printf("Pulled samples: %7d\n",
-                            writers[j]->getPulledSampleCount());
+                      printf("##WriterStats## Topic: %s , Pulled samples: %7d , Cache count: %7d , Cache count peak: %7d\n",
+                              writers[j]->getTopicName().c_str(),
+                              writers[j]->getPulledSampleCount(),
+                              writers[j]->getCachedSampleCount(),
+                              writers[j]->getCachedSampleCountPeak());
                     }
                 }
             }
@@ -2024,7 +2048,11 @@ int perftest_cpp::RunPublisher()
 
     if (_PM.get<bool>("writerStats")) {
         for (int j = 0; j < numWriters; j++) {
-            printf("Pulled samples: %7d\n", writers[j]->getPulledSampleCount());
+            printf("##WriterStats## Topic: %s , Pulled samples: %7d ,Cache count: %7d , Cache count peak: %7d\n",
+                    writers[j]->getTopicName().c_str(),
+                    writers[j]->getPulledSampleCount(),
+                    writers[j]->getCachedSampleCount(),
+                    writers[j]->getCachedSampleCountPeak());
         }
     }
 

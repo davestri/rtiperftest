@@ -118,7 +118,8 @@ _KeepDurationUsec variable name corresponds to the command-line option -keepDura
         <discovery>
           <initial_peers>
             <element>
-              127.0.0.1
+              <!-- 127.0.0.1 -->
+              10.30.2.231
             </element>
           </initial_peers>
         </discovery>

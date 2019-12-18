@@ -524,8 +524,20 @@ public:
         }
     }
 
+    std::string getTopicName() {
+        return (std::string)_writer->topic_name();
+    }
+
     unsigned int getPulledSampleCount() {
         return (unsigned int)_writer->datawriter_protocol_status().pulled_sample_count().total();
+    }
+
+    unsigned int getCachedSampleCount() {
+        return (unsigned int)_writer->datawriter_cache_status().sample_count();
+    }
+
+    unsigned int getCachedSampleCountPeak() {
+        return (unsigned int)_writer->datawriter_cache_status().sample_count_peak();
     }
 
     void waitForAck(long sec, unsigned long nsec) {
@@ -1042,6 +1054,19 @@ public:
             perftest_cpp::MilliSleep(PERFTEST_DISCOVERY_TIME_MSEC);
         }
     }
+
+    std::string getTopicName() {
+        return (std::string)_reader->topic_name();
+    }
+
+    unsigned int getCacheSampleCount() {
+        return (unsigned int)_reader->datareader_cache_status().sample_count();
+    }
+
+    unsigned int getCacheSampleCountPeak() {
+        return (unsigned int)_reader->datareader_cache_status().sample_count_peak();
+    }
+
 };
 
 template<typename T>

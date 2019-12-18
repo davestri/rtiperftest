@@ -654,8 +654,8 @@ void ParameterManager::initialize()
     Parameter<bool> *writerStats = new Parameter<bool>(false);
     writerStats->set_command_line_argument("-writerStats", "");
     writerStats->set_description(
-            "Display the Pulled Sample count stats for\n"
-            "reliable protocol debugging purposes.\nDefault: Not set");
+            "Display the Cached Sample count stats and the Pulled Sample\n"
+            "count for reliable protocol debugging purposes.\nDefault: Not set");
     writerStats->set_type(T_BOOL);
     writerStats->set_extra_argument(NO);
     writerStats->set_group(PUB);
@@ -790,6 +790,22 @@ void ParameterManager::initialize()
     numReaders->set_group(SUB);
     numReaders->set_supported_middleware(Middleware::RTIDDSPRO);
     create("numReaders", numReaders);
+
+    Parameter<bool> *readerStats = new Parameter<bool>(false);
+    readerStats->set_command_line_argument("-readerStats", "");
+    readerStats->set_description(
+            "Display the Cached Sample count stats for\n"
+            "protocol debugging purposes.\nDefault: Not set");
+    readerStats->set_type(T_BOOL);
+    readerStats->set_extra_argument(NO);
+    readerStats->set_group(SUB);
+    readerStats->set_supported_middleware(
+            Middleware::RTIDDSPRO
+            // | Middleware::RAWTRANSPORT
+            // | Middleware::RTIDDSMICRO
+            );
+    create("readerStats", readerStats);
+
 
   ////////////////////////////////////////////////////////////////////////////
   // TRANSPORT PARAMETERS
