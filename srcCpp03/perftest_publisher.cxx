@@ -963,6 +963,8 @@ int perftest_cpp::RunSubscriber()
     IMessagingWriter   *writer = NULL;
     IMessagingWriter   *announcement_writer = NULL;
 
+    int _num_readers = _PM.get<int>("numReaders");
+
     // create latency pong writer
     writer = _MessagingImpl->CreateWriter(LATENCY_TOPIC_NAME);
 
@@ -975,7 +977,7 @@ int perftest_cpp::RunSubscriber()
                 NULL,
                 _PM.is_set("cft"),
                 _PM.get<int>("numPublishers"));
-        for (int i = 0; i < _PM.get<int>("numReaders"); i++) {
+        for (int i = 0; i < _num_readers; i++) {
             printf("[Info] Creating reader %d for topic %d\n", i, i + _PM.get<int>("firstTopic"));
             std::ostringstream ss;
             ss << THROUGHPUT_TOPIC_NAME << (i + _PM.get<int>("firstTopic"));
@@ -1048,7 +1050,14 @@ int perftest_cpp::RunSubscriber()
               << _PM.get<int>("numPublishers")
               << " publishers ..."
               << std::endl;
-    readers[0]->waitForWriters(_PM.get<int>("numPublishers")); //drs. is one enough ?
+
+    if (_num_readers == 1) { // the original case for perftest
+        readers[0]->waitForWriters(_PM.get<int>("numPublishers"));
+    } else {
+        for (int i = 0; i < _num_readers; i++) {
+            readers[i]->waitForWriters( 1 ); //drs. one writer for each reader (today)
+        }
+    }
     announcement_writer->waitForReaders(_PM.get<int>("numPublishers"));
 
     /*
@@ -1669,7 +1678,7 @@ int perftest_cpp::RunPublisher()
               << _PM.get<int>("numSubscribers")
               << " subscribers ..."
               << std::endl;
-    writers[0]->waitForReaders(_PM.get<int>("numSubscribers"));
+    writers[0]->waitForReaders(_PM.get<int>("numSubscribers")); //drs. careful when more than one subscriber
 
     // We have to wait until every Subscriber sends an announcement message
     // indicating that it has discovered every RunPublisher
@@ -1717,7 +1726,7 @@ int perftest_cpp::RunPublisher()
 
     std::cerr << "[Info] Sending " << initializeSampleCount
             << " initialization pings ..." << std::endl;
-
+/*
     for (unsigned long i = 0; i < initializeSampleCount; i++) {
         // Send test initialization message
         for (int j = 0; j < _PM.get<int>("numWriters"); j++) {
@@ -1735,7 +1744,7 @@ int perftest_cpp::RunPublisher()
         tmp = writers[j]->getCachedSampleCountPeak();
         std::cerr << "[Info] Cached sample count peak = " << tmp << std::endl;
     }
-
+*/
     std::cerr << "[Info] Publishing data ..." << std::endl;
 
     // Set data size, account for other bytes in message
@@ -1755,7 +1764,7 @@ int perftest_cpp::RunPublisher()
     unsigned long long time_now = 0, time_last_check = 0, time_delta = 0;
     unsigned long pubRate_sample_period = 1;
     unsigned long rate = 0;
-printf("here 1\n");
+
     struct ScheduleInfo schedInfo = {
             (unsigned int)_PM.get<unsigned long long>("executionTime"),
             Timeout
@@ -1821,7 +1830,7 @@ printf("here 1\n");
             (unsigned int)_PM.get<unsigned long long>("executionTime"),
             Timeout_scan
     };
-    printf("here 2\n");
+
 
     /********************
      *  Main sending loop
