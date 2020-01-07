@@ -1279,6 +1279,8 @@ class LatencyListener : public IMessagingCB
     int  subID;
     bool printIntervals;
     bool showCpu;
+    int  firstTopic;
+    int  numWriters;
 
  public:
     IMessagingReader *_reader;
@@ -1331,6 +1333,9 @@ class LatencyListener : public IMessagingCB
         subID = _PM->get<int>("sidMultiSubTest");
         printIntervals = !_PM->get<bool>("noPrintIntervals");
         showCpu = _PM->get<bool>("cpu");
+
+        firstTopic = _PM->get<int>("firstTopic");
+        numWriters = _PM->get<int>("numWriters");
     }
 
     ~LatencyListener()
@@ -1374,6 +1379,13 @@ class LatencyListener : public IMessagingCB
 
             default:
                 break;
+        }
+
+        if (message.latency_ping < firstTopic ||
+                message.latency_ping >= firstTopic + numWriters) {
+            // these are latency responses (pongs) that belong to other "perftest -pub"s
+            //drs. could have done this as a content filter !?
+            return;
         }
 
         if (last_data_length != message.size)
@@ -1894,7 +1906,7 @@ int perftest_cpp::RunPublisher()
 
         // only send latency pings if is publisher with ID 0
         // In batch mode, latency pings are sent once every LatencyCount batches
-        if ((pidMultiPubTest == 0) && (((loop / samplesPerBatch)
+        if ( /*(pidMultiPubTest == 0) &&*/ (((loop / samplesPerBatch)
                 % latencyCount) == 0) ) {
 
             /* In batch mode only send a single ping in a batch.
@@ -2012,23 +2024,26 @@ int perftest_cpp::RunPublisher()
         current_index_in_batch = (current_index_in_batch + 1) % samplesPerBatch;
 
         message.seq_num = (unsigned long) loop;
-        message.latency_ping = pingID;
+        message.latency_ping = -1;
         for (int j = 0; j < numWriters; j++) {
-            writers[j]->send(message);
-        }
-        for (int j = 0; j < numWriters; j++) {
-            if(latencyTest && sentPing) {
-                if (!bestEffort) {
-                    writers[j]->waitForPingResponse();
-                    //drs. is this response the ACKNACK or the "latency pong"?
-                } else {
-                    /* timeout in milliseconds */
-                    writers[j]->waitForPingResponse(200); //drs. need to fix this if running Best Effort
+            if (j == pingID - firstTopic) { //drs. this is the one for the ping
+                message.latency_ping = pingID;
+                writers[j]->send(message);
+                message.latency_ping = -1;
+                //drs. only need to wait if we sent a ping
+                if(latencyTest && sentPing) {
+                    if (!bestEffort) {
+                        writers[j]->waitForPingResponse();
+                        //drs. is this response the ACKNACK or the "latency pong"?
+                    } else {
+                        /* timeout in milliseconds */
+                        writers[j]->waitForPingResponse(200); //drs. need to fix this if running Best Effort
+                    }
                 }
-                //drs. would be better to cycle these pings across writers
+            } else {
+                writers[j]->send(message);
             }
         }
-
 
         // come to the beginning of another batch
         if (current_index_in_batch == 0) {
@@ -2068,7 +2083,7 @@ int perftest_cpp::RunPublisher()
         i++;
     }
 
-    if (pidMultiPubTest == 0) {
+    if ( /*pidMultiPubTest == 0*/ 1) {
         reader_listener->print_summary_latency();
         reader_listener->end_test = true;
     } else {
