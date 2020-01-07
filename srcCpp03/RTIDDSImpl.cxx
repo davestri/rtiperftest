@@ -1075,6 +1075,9 @@ public:
         while (_reader.subscription_matched_status().current_count() < numPublishers) {
             perftest_cpp::MilliSleep(PERFTEST_DISCOVERY_TIME_MSEC);
         }
+        printf("Reader for %s matched to %d writers\n",
+                _reader->topic_name().c_str(),
+                _reader.subscription_matched_status().current_count());
     }
 
     std::string getTopicName() {
