@@ -901,7 +901,9 @@ public:
                 if (this->_message.topic_name.find(THROUGHPUT_TOPIC_NAME) != std::string::npos) {
                     //printf("Topic Name is %s, ", this->_message.topic_name.c_str());
                     // take upto 3 characters after "Throughput" from the name
-                    topic_number = stoi(this->_message.topic_name.substr(THROUGHPUT_TOPIC_NAME.size(),3));
+                    // C++11: topic_number = stoi(this->_message.topic_name.substr(THROUGHPUT_TOPIC_NAME.size(),3));
+                    std::istringstream is(this->_message.topic_name.substr(THROUGHPUT_TOPIC_NAME.size(),3));
+                    is >> topic_number;
                     //printf("Topic number = %d\n", topic_number);
                 } else {
                     topic_number = 0;
