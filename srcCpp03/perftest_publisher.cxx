@@ -2011,7 +2011,7 @@ int perftest_cpp::RunPublisher()
                 sentPing = true;
 
                 if (writerStats && printIntervals) {
-                    for (int j; j < numWriters; j++) {
+                    for (int j = 0; j < numWriters; j++) {
                       printf("##WriterStats## Topic: %s , Pulled samples: %7d , Cache count: %7d , Cache count peak: %7d\n",
                               writers[j]->getTopicName().c_str(),
                               writers[j]->getPulledSampleCount(),
