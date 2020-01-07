@@ -768,7 +768,7 @@ public:
 
         if (message.entity_id >= _num_publishers ||
             message.entity_id < 0) {
-            std::cerr << "[Error] ProcessMessage: message content no valid."
+            std::cerr << "[Error] ProcessMessage: message content not valid."
                     "message.entity_id out of bounds." << std::endl;
             return;
         }
@@ -810,21 +810,31 @@ public:
         }
 
 
-        // Send back a packet if this is a ping
-        if ((message.latency_ping == subID)
-                || (_useCft && message.latency_ping != -1)) {
-            _writer->send(message);
-            _writer->flush();
+        if (_PM->get<int>("numReaders") <= 1) { //drs. check default value
+            // Send back a packet if this is a ping
+            if ((message.latency_ping == subID) //drs. the single topic case
+                    || (_useCft && message.latency_ping != -1)) {
+                _writer->send(message);
+                _writer->flush();
+            }
+        } else {
+            // Send back a packet if this is a ping
+            //printf("latency ping: %d, topic_number: %d\n",message.latency_ping, message.topic_number);
+            if (message.latency_ping == message.topic_number) { //drs. the multi topic case
+                    //drs. || (_useCft && message.latency_ping != -1)) {
+                _writer->send(message);
+                _writer->flush();
 
-            // print out cache count for this reader
-            if (_PM->get<bool>("readerStats")) {
-                if (_reader == NULL) {
-                    printf("can't print reader stats, _reader is NULL\n");
-                } else {
-                    printf("##ReaderStats## Topic: %s , Cache count: %7d , Cache count peak: %7d\n",
-                          _reader->getTopicName().c_str(),
-                          _reader->getCachedSampleCount(),
-                          _reader->getCachedSampleCountPeak());
+                // print out cache count for this reader
+                if (_PM->get<bool>("readerStats")) {
+                    if (message.topic_number == 0) { //drs. check default value
+                        printf("can't print reader stats, message.topic_number is 0\n");
+                    } else {
+                        printf("##ReaderStats## Topic: %7d , Cache count: %7d , Cache count peak: %7d\n",
+                              message.topic_number,
+                              message.cached_sample_count,
+                              message.cached_sample_count_peak);
+                    }
                 }
             }
         }
@@ -971,7 +981,7 @@ int perftest_cpp::RunSubscriber()
     // Check if using callbacks or read thread
     if (!_PM.get<bool>("useReadThread")) {
         // create throughput ping reader(s)
-        reader_listener = new ThroughputListener( //drs. one listener or many?
+        reader_listener = new ThroughputListener( //drs. one listener for many readers?
                 _PM,
                 writer,
                 NULL,
@@ -1439,8 +1449,10 @@ class LatencyListener : public IMessagingCB
                 if (showCpu) {
                     outputCpu = cpu.get_cpu_instant();
                 }
-                printf("One way Latency: %6lu us  Ave %6.0lf us  Std %6.1lf us "
+                //printf("latency_ping in pong message: %d\n", message.latency_ping);
+                printf("Topic: %7d One way Latency: %6lu us  Ave %6.0lf us  Std %6.1lf us "
                         " Min %6lu us  Max %6lu %s\n",
+                        message.latency_ping,
                         latency,
                         latency_ave,
                         latency_std,
@@ -1575,7 +1587,7 @@ int perftest_cpp::RunPublisher()
     }
 
     // Only publisher with ID 0 will send/receive pings
-    if (_PM.get<int>("pidMultiPubTest") == 0) {
+    if ( /* _PM.get<int>("pidMultiPubTest") == 0 */ 1 ) { //drs. latency for all Pubs
         // Check if using callbacks or read thread
         if (!_PM.get<bool>("useReadThread")) {
             // create latency pong reader
@@ -1807,6 +1819,7 @@ int perftest_cpp::RunPublisher()
      * - scanList
      * - isSetPubRate
      * - numWriters
+     * - firstTopic
      */
     const unsigned long long numIter = _PM.get<unsigned long long>("numIter");
     const unsigned long long latencyCount =
@@ -1825,6 +1838,7 @@ int perftest_cpp::RunPublisher()
             _PM.get_vector<unsigned long long>("scan");
     const bool isSetPubRate = _PM.is_set("pubRate");
     const int numWriters = _PM.get<int>("numWriters");
+    const int firstTopic = _PM.get<int>("firstTopic");
 
     struct ScheduleInfo schedInfo_scan = {
             (unsigned int)_PM.get<unsigned long long>("executionTime"),
@@ -1968,8 +1982,14 @@ int perftest_cpp::RunPublisher()
                     current_index_in_batch = 0;
                 }
 
-                // Each time ask a different subscriber to echo back
-                pingID = num_pings % numSubscribers;
+                if (numWriters == 1) {
+                    // Each time ask a different subscriber to echo back
+                    pingID = num_pings % numSubscribers;
+                } else {
+                    // Each time ask for an echo on a different topic
+                    pingID = (num_pings % numWriters) + (firstTopic); //drs. ???
+                }
+                //printf("outgoing pingID: %d\n", pingID); //drs. outgoing latency_ping
                 unsigned long long now = GetTimeUsec();
                 message.timestamp_sec = (int)((now >> 32) & 0xFFFFFFFF);
                 message.timestamp_usec = (unsigned int)(now & 0xFFFFFFFF);
@@ -2000,9 +2020,10 @@ int perftest_cpp::RunPublisher()
             if(latencyTest && sentPing) {
                 if (!bestEffort) {
                     writers[j]->waitForPingResponse();
+                    //drs. is this response the ACKNACK or the "latency pong"?
                 } else {
-                    /* time out in milliseconds */
-                    writers[j]->waitForPingResponse(200);
+                    /* timeout in milliseconds */
+                    writers[j]->waitForPingResponse(200); //drs. need to fix this if running Best Effort
                 }
                 //drs. would be better to cycle these pings across writers
             }

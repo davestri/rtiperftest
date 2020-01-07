@@ -24,6 +24,11 @@ class TestMessage
     int          timestamp_sec;
     unsigned int timestamp_usec;
     int          latency_ping;
+    // these members don't go on the wire, used to communicate between layers
+    std::string  topic_name;
+    int          topic_number; //drs.
+    int          cached_sample_count; //drs.
+    int          cached_sample_count_peak; //drs.
 
     TestMessage():
         size(0),
@@ -31,12 +36,17 @@ class TestMessage
         seq_num(0),
         timestamp_sec(0),
         timestamp_usec(0),
-        latency_ping(0)
+        latency_ping(0),
+        //topic_name(""), //drs.
+        topic_number(0), //drs.
+        cached_sample_count(0), //drs.
+        cached_sample_count_peak(0) //drs.
     {
         key[0]=0;
         key[1]=0;
         key[2]=0;
         key[3]=0;
+        //drs. data.resize() when we know the size
     }
 };
 

@@ -603,6 +603,12 @@ public:
         this->data.bin_data().resize(message.size);
         //data.bin_data(message.data);
 
+        //drs. put the topic number in bin_data for a Latency write
+        // much better to change IDL but there would be consequences
+        // remember also, this send() is called for all three topics
+        this->data.bin_data().at(0) = message.topic_number / 256;
+        this->data.bin_data().at(1) = message.topic_number % 256;
+
         long key = 0;
         if (!isCftWildCardKey) {
             if (this->_num_instances > 1) {
@@ -873,7 +879,8 @@ class ReceiverListener: public ReceiverListenerBase<T> {
 
 public:
     ReceiverListener(IMessagingCB *callback) :
-        ReceiverListenerBase<T>(callback) {
+            ReceiverListenerBase<T>(callback) {
+        this->_message.data.resize(4096); //drs. need a better solution when changing size in test
     }
 
     void on_data_available(dds::sub::DataReader<T> &reader) {
@@ -888,7 +895,22 @@ public:
                 this->_message.timestamp_sec = sample.timestamp_sec();
                 this->_message.timestamp_usec = sample.timestamp_usec();
                 this->_message.latency_ping = sample.latency_ping();
+                //drs. put topic number in _message here
+                this->_message.topic_name = reader->topic_name();
+                int topic_number = 0;
+                if (this->_message.topic_name.find(THROUGHPUT_TOPIC_NAME) != std::string::npos) {
+                    //printf("Topic Name is %s, ", this->_message.topic_name.c_str());
+                    // take upto 3 characters after "Throughput" from the name
+                    topic_number = stoi(this->_message.topic_name.substr(THROUGHPUT_TOPIC_NAME.size(),3));
+                    //printf("Topic number = %d\n", topic_number);
+                } else {
+                    topic_number = 0;
+                }
+                this->_message.topic_number = topic_number;
+                this->_message.cached_sample_count = reader->datareader_cache_status().sample_count();
+                this->_message.cached_sample_count_peak = reader->datareader_cache_status().sample_count_peak();
                 this->_message.size = (int) sample.bin_data().size();
+                //drs. uncomment this to get memcpy behavior !?
                 //this->_message.data = sample.bin_data();
                 this->_callback->ProcessMessage(this->_message);
             }
