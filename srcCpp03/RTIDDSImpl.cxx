@@ -1077,9 +1077,9 @@ public:
         while (_reader.subscription_matched_status().current_count() < numPublishers) {
             perftest_cpp::MilliSleep(PERFTEST_DISCOVERY_TIME_MSEC);
         }
-        printf("Reader for %s matched to %d writers\n",
-                _reader->topic_name().c_str(),
-                _reader.subscription_matched_status().current_count());
+        //printf("Reader for %s matched to %d writers\n",
+        //        _reader->topic_name().c_str(),
+        //        _reader.subscription_matched_status().current_count());
     }
 
     std::string getTopicName() {
@@ -2082,8 +2082,8 @@ const std::string RTIDDSImpl<T>::get_qos_profile_name(std::string topicName)
 {
     // this bit is rather brittle. it relies on digit suffix to topic name
     int pos = topicName.find_first_of("0123456789");
-    std::cerr << "trying topic: " << topicName << " as "
-              << topicName.substr(0,pos) << std::endl;
+    //std::cerr << "trying topic: " << topicName << " as "
+    //          << topicName.substr(0,pos) << std::endl;
     if (_qoSProfileNameMap[topicName.substr(0,pos)].empty()) {
         std::cerr << "topic name must either be "
                   << THROUGHPUT_TOPIC_NAME << "??? or be "
