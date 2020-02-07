@@ -281,13 +281,17 @@ void ParameterManager::initialize()
     flowController->set_description(
             "In the case asynchronous writer use a specific flow controller.\n"
             "There are several flow controller predefined:\n"
-            "\t{'default', '1Gbps', '10Gbps'}\n"
+            "\t{'default', '1Gbps', '10Gbps', 'fast_flow', 'medium_flow', 'slow_flow', 'my_flow'}\n"
             "Default: \"default\" (If using asynchronous)");
     flowController->set_type(T_STR);
     flowController->set_extra_argument(YES);
     flowController->add_valid_str_value("default");
     flowController->add_valid_str_value("1Gbps");
     flowController->add_valid_str_value("10Gbps");
+    flowController->add_valid_str_value("fast_flow"); // the built-in flow controllers
+    flowController->add_valid_str_value("medium_flow");
+    flowController->add_valid_str_value("slow_flow");
+    flowController->add_valid_str_value("my_flow"); // a user defined flow controller
     flowController->set_group(GENERAL);
     flowController->set_supported_middleware(Middleware::RTIDDSPRO);
     create("flowController", flowController);

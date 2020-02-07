@@ -59,7 +59,8 @@ namespace std {
     }
 }
 
-std::string valid_flow_controller[] = {"default", "1Gbps", "10Gbps"};
+std::string valid_flow_controller[] =
+        {"default", "1Gbps", "10Gbps", "fast_flow", "medium_flow", "slow_flow", "my_flow"};
 
 template <typename T>
 rti::core::Semaphore RTIDDSImpl<T>::_finalizeFactorySemaphore(RTI_OSAPI_SEMAPHORE_KIND_MUTEX, NULL);
@@ -358,7 +359,7 @@ std::string RTIDDSImpl<T>::PrintConfiguration()
     stringStream << std::endl;
   #endif
 
-    // Dynamic Data
+    // Asynchronous Publishing
     if (_PM->get<bool>("pub")) {
         stringStream << "\tAsynchronous Publishing: ";
         if (_isLargeData || _PM->get<bool>("asynchronous")) {
