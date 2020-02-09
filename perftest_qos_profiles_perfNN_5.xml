@@ -161,7 +161,7 @@ _KeepDurationUsec variable name corresponds to the command-line option -keepDura
             <element>
               <name>dds.transport.UDPv4.builtin.parent.deny_interfaces_list</name>
               <!-- value>enp4s0f0</value --> <!-- for perf03, perf04 -->
-              <!-- value>enp4s0f0</value --> <!-- for perf07 to perf15 -->
+              <value></value> <!-- for perf07 to perf15 -->
             </element>
             <element>
               <name>dds.transport.UDPv4.builtin.parent.message_size_max</name>
