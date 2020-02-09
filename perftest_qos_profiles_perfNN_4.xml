@@ -119,18 +119,18 @@ _KeepDurationUsec variable name corresponds to the command-line option -keepDura
           <initial_peers>
             <!-- element>127.0.0.1</element --> <!-- loopback -->
             <!-- element>10.46.0.73</element --> <!-- perf03 -->
-            <!-- element>10.47.3.73</element --> <!-- perf03 10Gb ethernet -->
+            <element>10.47.3.73</element> <!-- perf03 10Gb ethernet -->
             <!-- element>9@10.46.0.74</element --> <!-- perf04 -->
-            <!-- element>9@10.47.3.74</element --> <!-- perf04 10Gb ethernet -->
-            <element>10.45.1.26</element> <!-- perf07 -->
-            <element>10.45.1.27</element> <!-- perf08 -->
-            <element>10.45.1.28</element> <!-- perf09 -->
-            <element>10.45.1.29</element> <!-- perf10 -->
-            <element>10.45.1.30</element> <!-- perf11 -->
-            <element>10.45.1.31</element> <!-- perf12 -->
-            <element>10.45.1.32</element> <!-- perf13 -->
-            <element>10.45.1.33</element> <!-- perf14 -->
-            <element>10.45.1.34</element> <!-- perf15 -->
+            <element>9@10.47.3.74</element> <!-- perf04 10Gb ethernet -->
+            <!-- element>10.45.1.26</element --> <!-- perf07 -->
+            <!-- element>10.45.1.27</element --> <!-- perf08 -->
+            <!-- element>10.45.1.28</element --> <!-- perf09 -->
+            <!-- element>10.45.1.29</element --> <!-- perf10 -->
+            <!-- element>10.45.1.30</element --> <!-- perf11 -->
+            <!-- element>10.45.1.31</element --> <!-- perf12 -->
+            <!-- element>10.45.1.32</element --> <!-- perf13 -->
+            <!-- element>10.45.1.33</element --> <!-- perf14 -->
+            <!-- element>10.45.1.34</element --> <!-- perf15 -->
           </initial_peers>
         </discovery>
 
@@ -155,13 +155,13 @@ _KeepDurationUsec variable name corresponds to the command-line option -keepDura
             -->
             <element>
               <name>dds.transport.UDPv4.builtin.parent.allow_interfaces_list</name>
-              <!-- value>enp5s0</value --> <!-- for perf03, perf04 -->
-              <value>10.45.1.*</value> <!-- for perf07 to perf15 -->
+              <value>enp5s0</value> <!-- for perf03, perf04 -->
+              <!-- value>10.45.1.*</value --> <!-- for perf07 to perf15 -->
             </element>
             <element>
               <name>dds.transport.UDPv4.builtin.parent.deny_interfaces_list</name>
-              <!-- value>enp4s0f0</value --> <!-- for perf03, perf04 -->
-              <value></value> <!-- for perf07 to perf15 -->
+              <value>enp4s0f0</value> <!-- for perf03, perf04 -->
+              <!-- value></value --> <!-- for perf07 to perf15 -->
             </element>
             <element>
               <name>dds.transport.UDPv4.builtin.parent.message_size_max</name>
